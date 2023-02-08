@@ -23,18 +23,18 @@ def run_tweet(api):
     df_tweet = pd.read_csv("data/tweet.csv")
     
     # get Tweet object from row
-    for _, row in df_tweet.iterrows():
-        api.post_tweet(Tweet(user=row[0], ts=None, text=row[1]))
-    total_time = round(time.time()-start,4)
+    for idx, row in df_tweet.iterrows():
+        api.post_tweet(idx, Tweet(user=row[0], ts=time.time(), text=row[1]))
+    total_time = time.time()-start
     print(f'Time to post tweets = {total_time} seconds')
     print(f'-> {df_tweet.shape[0]/total_time} api calls/second')
     
     # get distinct users
     users = api.get_users()
 
-    # get timelines (1000 / time --> timelines/sec)
+    # get timelines (5000 / time --> timelines/sec)
     timelines = []
-    n = 1000
+    n = 5000
     before = time.time()
     for _ in range(n):
         user = random.choice(users) # randomize from distinct user list, then call api
