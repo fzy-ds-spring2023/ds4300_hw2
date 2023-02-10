@@ -37,12 +37,18 @@ class RedisTwitterAPI_1:
         
         # push tweet keys to users
         for key in all_keys:
-            self.r.lpush(f"user:{self.r.hget(key, 'user')}", key)    
+            self.r.lpush(f"user:{self.r.hget(key, 'user')}", key)
+                
+        # set of user ids
         all_keys = self.r.keys('user:*')
-        
-        # get unique list of integers from key values
-        ids = list(set([int(''.join(filter(str.isdigit, key))) for key in all_keys]))
-        return ids
+        for key in all_keys:
+            self.r.sadd('all_users', key.split(":")[1])
+            
+        return list(self.r.smembers('all_users'))
+    
+    def rand_user(self):
+        # random user
+        return self.r.srandmember('all_users')
         
     def get_user_timeline(self, user):
         # get ids of user follows
@@ -54,8 +60,7 @@ class RedisTwitterAPI_1:
             
     
         # get the 10 most recent posts for a users timeline
-        timeline = [self.r.hget(twt, 'text') for twt in self.r.zrange(f"timeline:{user}", 0, 9)]
-        return timeline
+        return [Tweet(self.r.hget(twt, 'user'), self.r.hget(twt, 'ts'), self.r.hget(twt, 'text')) for twt in self.r.zrange(f'timeline{user}', 0, 9)]
     
 
 
@@ -80,27 +85,31 @@ class RedisTwitterAPI_2:
         
     def post_tweet(self, idx, twt):
         # push to user_id
-        twt_map = {'user': twt.user, 'ts': twt.ts, 'text':twt.text}
-        self.r.hset(f"tweet:{idx}", mapping=twt_map)
+        twt_id = f"tweet:{idx}"
+        self.r.hset(f"tweet:{idx}", mapping={'user': twt.user, 'ts': twt.ts, 'text':twt.text})
         
         # push to timeline of people who follow the above user
         for id in self.r.lrange(f'followers:{twt.user}', 0, -1):
-            self.r.lpush(f"timeline:{id}", twt.text)
+            self.r.lpush(f"timeline:{id}", twt_id)
         
     def get_users(self):
         # get all keys and return list of integers
-        all_keys = self.r.keys('tweet:*')
-        
-        # push tweet keys to users
+        all_keys = self.r.keys('followers:*')
         for key in all_keys:
-            self.r.lpush(f"user:{self.r.hget(key, 'user')}", key)    
-        all_keys = self.r.keys('user:*')
+            self.r.sadd('all_users', key.split(":")[1])
         
         # get unique list of integers from key values
-        ids = list(set([int(''.join(filter(str.isdigit, key))) for key in all_keys]))
-        return ids
+        return list(self.r.smembers('all_users'))
+    
+    def rand_user(self):
+        # get random user
+        return self.r.srandmember('all_users')
         
     def get_user_timeline(self, user):
         # get the 10 most recent posts for a users timeline
-        timeline = self.r.lrange(f"timeline:{user}", 0, 9)
+        timeline = []
+        for twt in self.r.lrange(f"timeline:{user}", 0, 9):
+            twt_map = self.r.hgetall(twt)
+            timeline.append(Tweet(twt_map['user'], twt_map['ts'], twt_map['text'])) 
+            
         return timeline

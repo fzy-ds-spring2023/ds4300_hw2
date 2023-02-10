@@ -32,12 +32,12 @@ def run_tweet(api):
     # get distinct users
     users = api.get_users()
 
-    # get timelines (5000 / time --> timelines/sec)
+    # get timelines (1000 / time --> timelines/sec)
     timelines = []
-    n = 5000
+    n = 1000
     before = time.time()
-    for _ in range(n):
-        user = random.choice(users) # randomize from distinct user list, then call api
+    for _ in range(n): 
+        user = api.rand_user() # get random user and call user timeline
         timelines.append(api.get_user_timeline(user))
     total_time = time.time()-before
     print(f'Time to get timelines = {total_time} seconds')
